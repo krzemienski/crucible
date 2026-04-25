@@ -1,0 +1,23 @@
+{
+  "name": "crucible",
+  "version": "0.1.0",
+  "description": "Evidence-gated task planning, execution, and validation for Claude Code. Refuses completion without quorum-approved proof. No mocks. No stubs. No silent retries past the gate.",
+  "author": {
+    "name": "Nick Krzemienski",
+    "url": "https://github.com/krzemienski"
+  },
+  "homepage": "https://github.com/krzemienski/crucible",
+  "repository": "https://github.com/krzemienski/crucible",
+  "license": "MIT",
+  "keywords": [
+    "validation",
+    "evidence",
+    "consensus",
+    "audit",
+    "oracle",
+    "verification",
+    "iron-rule",
+    "completion-gate",
+    "reproducibility"
+  ]
+}
