@@ -111,9 +111,12 @@ def evaluate_quorum(evidence_root: Path) -> str:
         return "BLOCKED"
     text = decision.read_text()
     blockers_dir = evidence_root / "final-oracle-evidence-audit" / "blockers"
+    META_FILES = {"README.md", "INDEX.md", "STATUS.md"}
     open_blockers = [
         b for b in blockers_dir.iterdir() if blockers_dir.exists()
-        and b.is_file() and not (b.name.endswith(".resolved.md"))
+        and b.is_file()
+        and b.name not in META_FILES
+        and not b.name.endswith(".resolved.md")
     ] if blockers_dir.exists() else []
     if "APPROVED" in text and not open_blockers:
         return "APPROVED"

@@ -12,6 +12,18 @@ set -uo pipefail
 
 : "${CLAUDE_PLUGIN_ROOT:=$(cd "$(dirname "$0")/.." && pwd)}"
 : "${CLAUDE_PROJECT_DIR:=$(pwd)}"
+# Avoid evidence/evidence/ when subprocess cwd is already evidence/.
+if [ "$(basename "$CLAUDE_PROJECT_DIR")" = "evidence" ]; then
+  CLAUDE_PROJECT_DIR="$(dirname "$CLAUDE_PROJECT_DIR")"
+fi
+
+# === OPT-IN GATE (Layer 1) ===
+if [ ! -f "${CLAUDE_PROJECT_DIR}/.crucible/active" ]; then
+  exit 0
+fi
+# === ESCAPE HATCHES (Layer 2) ===
+if [ -f "${CLAUDE_PROJECT_DIR}/.crucible/disabled" ]; then exit 0; fi
+if [ "${CRUCIBLE_DISABLE:-0}" = "1" ]; then exit 0; fi
 
 EVIDENCE="${CLAUDE_PROJECT_DIR}/evidence/session-receipts"
 mkdir -p "$EVIDENCE" 2>/dev/null || true
