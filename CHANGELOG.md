@@ -4,6 +4,37 @@ All notable changes to the Crucible plugin are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-04-26 — Documentation patch: surface 14 additional commands shipped in v0.2.0
+
+v0.2.0 inadvertently shipped 19 slash commands but its CHANGELOG only documented 5. This release documents the 14 additional commands that were already on disk. No code changes — documentation only.
+
+### Documented (already shipped in v0.2.0)
+
+| Command | Purpose |
+|---------|---------|
+| `/crucible:agent-new` | Scaffold a new subagent at `agents/<name>.md` (roles: planner, reviewer, oracle, validator, analyst, generic) |
+| `/crucible:autopilot` | `/crucible:forge` in a refusal-driven retry loop (max 3 attempts; Iron Rule preserved per iteration) |
+| `/crucible:command-new` | Scaffold a new slash command at `commands/<name>.md` with proper frontmatter |
+| `/crucible:explain` | Print the DAG of a Crucible command/skill — which skills/agents/hooks fire, in what order, with what evidence outputs (read-only) |
+| `/crucible:fix` | Idempotent auto-repair for common drift — regenerate stale INDEX.md, sync plugin↔marketplace versions, re-link orphaned trials (creates only, never deletes) |
+| `/crucible:forge` | End-to-end pipeline: codebase-analysis → docs-research → planning → oracle-plan-review → execute → validation → evidence-indexing → 3-reviewer consensus → 3-oracle quorum → completion-gate. The conductor PRD §1.16.2 implied but never named. |
+| `/crucible:graph` | Render the current evidence-tree state as a Mermaid graph (sealed/pending/failed MSCs); optional `--run-id` to scope (read-only) |
+| `/crucible:hook-new` | Scaffold a new hook at `bin/<name>.sh` with canonical stdin/stderr/exit-code protocol; patches `hooks/hooks.json` to register it |
+| `/crucible:remediate` | Read `REFUSAL.md`, produce a delta plan targeting only failing MSCs/blockers, execute it, prepare next forge iteration |
+| `/crucible:resume` | Resume a halted `forge` or `autopilot` run by inspecting the evidence tree and continuing from the first missing phase artifact (evidence-tree-as-state) |
+| `/crucible:rule-new` | Scaffold a new rule fragment under `templates/rules/<name>.md`, then recompose `docs/CRUCIBLE-CLAUDE-MD.md` |
+| `/crucible:skill-new` | Scaffold a new skill at `skills/<name>/SKILL.md` with frontmatter, evidence-path conventions, refusal modes |
+| `/crucible:stack-new` | Bootstrap a project for Crucible — creates evidence/ tree (16 standard subdirs), `.crucible/active` sentinel, runs `/crucible:setup --local`. The "first time using Crucible in this project" command. |
+| `/crucible:trial` | Run `/crucible:forge` inside a named trial subdirectory under `evidence/robust-trials/trial-NN/` — fulfills PRD §1.13.5 FR-TRIAL-1..5 |
+
+### Total command surface (post-v0.2.1 documentation)
+
+19 commands: 5 original PRD CMD-1..5 (`plan-and-execute`, `validate`, `audit`, `status`, `doctor`) + 14 above.
+
+### Note
+
+The 14 commands above shipped functional in v0.2.0 — only their CHANGELOG entries were missing. Users who installed v0.2.0 already have access to all 19 commands; v0.2.1 just adds the docs.
+
 ## [0.2.0] — 2026-04-25 — PRD gap remediation (closes 16/21 v0.1.1 PRD gaps)
 
 Closes the 21 functionality gaps identified in `plans/reports/gap-analysis-260425-1837-prd-functionality-gaps.md` (v2). 16 gaps closed in this release; 5 deferred to v0.3 with explicit migration paths.
