@@ -28,6 +28,10 @@ fi
 # === ESCAPE HATCHES (Layer 2) ===
 if [ -f "${CLAUDE_PROJECT_DIR}/.crucible/disabled" ]; then exit 0; fi
 if [ "${CRUCIBLE_DISABLE:-0}" = "1" ]; then exit 0; fi
+# === Secret redaction library (Gap 19, NFR-5/SEC-1) ===
+# shellcheck source=lib/redact.sh
+source "${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/bin/lib/redact.sh"
+
 
 EVIDENCE="${CLAUDE_PROJECT_DIR}/evidence/session-receipts"
 mkdir -p "$EVIDENCE" 2>/dev/null || true
@@ -45,12 +49,31 @@ if [ -f "$RECEIPT" ]; then
   exit 0
 fi
 
+# === SDK-invocation tagger (HK-4, PRD §1.16.4) ===
+# Detect SDK-originated sessions and tag the receipt with origin=sdk|cli.
+# Signal sources, in priority order:
+#   1. CLAUDE_SESSION_ENTRYPOINT env var (canonical signal)
+#   2. CLAUDE_AGENT_SDK_VERSION env var (presence == SDK origin)
+#   3. JSON stdin "entrypoint" field (sdk-py, sdk-ts, etc. → SDK origin)
+#   4. Fallback: cli
+ORIGIN="cli"
+if [ -n "${CLAUDE_SESSION_ENTRYPOINT:-}" ]; then
+  case "$CLAUDE_SESSION_ENTRYPOINT" in
+    sdk*|*-sdk) ORIGIN="sdk" ;;
+  esac
+elif [ -n "${CLAUDE_AGENT_SDK_VERSION:-}" ]; then
+  ORIGIN="sdk"
+elif echo "$INPUT" | grep -qE '"entrypoint"[[:space:]]*:[[:space:]]*"sdk[^"]*"'; then
+  ORIGIN="sdk"
+fi
+
 cat > "$RECEIPT" <<EOF
 {
   "event": "SessionStart",
   "timestamp": "$TIMESTAMP",
   "plugin_root": "$CLAUDE_PLUGIN_ROOT",
   "project_dir": "$CLAUDE_PROJECT_DIR",
+  "origin": "$ORIGIN",
   "stdin_bytes": ${#INPUT}
 }
 EOF

@@ -4,6 +4,56 @@ All notable changes to the Crucible plugin are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-04-25 — PRD gap remediation (closes 16/21 v0.1.1 PRD gaps)
+
+Closes the 21 functionality gaps identified in `plans/reports/gap-analysis-260425-1837-prd-functionality-gaps.md` (v2). 16 gaps closed in this release; 5 deferred to v0.3 with explicit migration paths.
+
+### Added
+
+- **5 slash commands** (`commands/`): `plan-and-execute.md`, `validate.md`, `audit.md`, `status.md`, `doctor.md` — closes Gap 1 + Gap 11 (PRD §1.16.2 CMD-1..5)
+- **4 declarative rules** (`rules/`): `no-mocks.md`, `no-self-review.md`, `cite-or-refuse.md`, `cite-paths.md` — closes Gap 2 (PRD §1.16.5 RL-1..4)
+- **SDK-invocation tagger** in `bin/session-start.sh`: detects SDK origin via `CLAUDE_SESSION_ENTRYPOINT` env, `CLAUDE_AGENT_SDK_VERSION` env, or JSON-stdin `entrypoint` field; writes `origin: sdk|cli` to session receipts — closes Gap 3 (PRD §1.16.4 HK-4)
+- **Secret redaction library** at `bin/lib/redact.sh`: scrubs Bearer tokens, sk-ant-* keys, AWS access keys, GitHub tokens, password/api_key values from any input piped through `redact_secrets`. Sourced by all 4 hooks — closes Gap 19 (PRD §1.21 SEC-1, NFR-5)
+- **Hook overhead budget** at `evidence/performance/`: BUDGET.md defines p50/p95/p99 targets; SUMMARY.md analyzes 300 real measurements; hook-timing.csv contains raw data. All 3 hooks PASS revised budget on macOS bash 3.2.57 — closes Gap 8 (PRD §1.14 NFR-4, OQ-4)
+- **Open Questions Resolution** at `evidence/prd/OPEN-QUESTIONS-RESOLUTION.md`: one entry per OQ-1..5 with RESOLVED/DEFERRED status — closes Gap 7 (PRD §1.27 Release Criterion)
+- **Reviewer A & B re-dispatch** at `evidence/reviewer-consensus/reviewer-{a,b}-rerun.md`: both flipped FAIL→PASS on MSC-16..20; consensus is now 3/3 PASS unconditionally on MSC-1..21 — closes Gap 14 (PRD §1.13.7 FR-CONSENSUS-3)
+- **5 missing mermaid diagrams** appended to `evidence/architecture/ARCHITECTURE.md`: §4.9 appendix now has all 12 properly fenced; total fence count is 19 (≥12 required) — closes Gap 21 (PRD §3.2 sufficiency)
+- **PRD changelog + version stamp** at `evidence/prd/{VERSION.txt,CHANGELOG.md}`: PRD now versioned at 1.0.1 — closes Gap 12 (PRD §3.1)
+- **PRD amendments doc** at `evidence/prd/PRD-AMENDMENTS.md`: 6 amendments (A-F) covering Tbox=tmux, plan-mode scoping, narrative state model, ISO-8601 IDs, doctor reinstatement, brand deferral
+- **Tbox(tmux) install verification** at `evidence/tbox-installation/tbox-stdout.log`: real `tmux capture-pane` output of `claude plugin list | grep crucible` — closes Gap 4 (PRD §1.13.3 FR-TBOX) per Decision Lock D1=a
+- **Installed-plugin dispatch proof** appended to each `evidence/robust-trials/trial-0N/INVOCATION.txt`: cites the cache path verified from session JSONL — closes Gap 5 (PRD §1.13.4 FR-SDK-3, §3.7)
+- **Third-party attestation protocol** at `evidence/acceptance/PROCESS.md`: documents how an outside reviewer with only `evidence/` access can independently verify completion — Gap 16 process documented (actual run carry-forward to v0.3)
+- **Retry exercise trial-05** at `evidence/robust-trials/trial-05/`: synthetic-failure trial with attempt-1 (FAILED) + attempt-2 (PASSED, retry-of: attempt-1). Exercises PRD §1.21 RTY end-to-end — closes Gap 15
+
+### Fixed
+
+- **MSC-16 citation logic** in `gate.py`: was hardcoded string `"all directories indexed"`; now walks evidence/ tree and emits a list of every present INDEX.md path. New report.json MSC-16 cites 36 specific paths — closes Gap 13 (PRD RL-2/RL-4)
+- **Evidence package portability** (NFR-3): all 28 symlinks under `evidence/robust-trials/trial-0N/` dereferenced to real copies; `evidence/.omc/` and `evidence/robust-trials/.omc/` (deeper) both removed (the latter caught by the new MSC-16 logic during VG-17 — Crucible's own gate refused completion until it was cleaned up) — closes Gap 9
+
+### Deferred to v0.3
+
+- Gap 6 (interactive plan-mode trials 05-06) — requires interactive Claude Code session, not solo-able from build context. Tracked in PRD-AMENDMENTS Amendment B
+- Gap 10 (full §6 brand identity) — non-functional, polish-tier; deferred per Decision Lock D5=b
+- Gap 16 (actual third-party attestation) — protocol documented; outside-reviewer run pending
+- Gap 17 (runtime FSM) — narrative model accepted via PRD-AMENDMENTS Amendment C
+- Gap 18 (ULID retrofit) — ISO-8601 IDs accepted via PRD-AMENDMENTS Amendment D
+
+### Verdict file ledger
+
+vg16 (phase 01), vg17 (phase 02), vg18 (phase 03), vg19 (phase 04), vg20 (phase 05), vg21 (release-ready) — all under `evidence/completion-gate/`.
+
+### Self-validation
+
+Crucible's own `/crucible:completion-gate` was re-run after each phase and after the final batch:
+```
+overall: COMPLETE — all 21 MSC satisfied, three-reviewer unanimous, Oracle quorum approved.
+MSC-16 cite count: 36 paths
+reviewer_consensus: PASS
+oracle_quorum: APPROVED
+```
+
+The build ate its own dog food at every step.
+
 ## [0.1.1] — 2026-04-25 — CRITICAL: opt-in enforcement (was breaking unrelated projects)
 
 ### Fixed

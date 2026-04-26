@@ -56,6 +56,10 @@ INPUT=$(head -c 65536 || true)
 TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
 RECEIPT="$RECEIPTS/completion-attempt-${TIMESTAMP}.json"
 
+# === Secret redaction library (Gap 19, NFR-5/SEC-1) ===
+# shellcheck source=lib/redact.sh
+source "${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/bin/lib/redact.sh"
+
 REPORT="${EVIDENCE_ROOT}/completion-gate/report.json"
 
 # Default: REFUSED unless we can prove COMPLETE

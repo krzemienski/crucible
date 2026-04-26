@@ -78,15 +78,26 @@ def evaluate_msc(msc_id: str, paths: list, evidence_root: Path) -> dict:
         cited.append(str(full.relative_to(evidence_root)))
 
     if msc_id == "MSC-16":
-        # Special: every directory under evidence/ must have INDEX.md
+        # Special: every directory under evidence/ must have INDEX.md.
+        # PASS citation = sorted list of every INDEX.md path actually present
+        # (per PRD RL-2/RL-4 — citations must be specific file paths, not strings).
         missing_indexes = []
-        for d in evidence_root.rglob("*"):
-            if d.is_dir() and not (d / "INDEX.md").exists():
-                missing_indexes.append(str(d.relative_to(evidence_root)))
+        present_indexes = []
+        for d in sorted(evidence_root.rglob("*")):
+            if d.is_dir():
+                idx = d / "INDEX.md"
+                if idx.exists():
+                    present_indexes.append(str(idx.relative_to(evidence_root)))
+                else:
+                    missing_indexes.append(str(d.relative_to(evidence_root)))
+        # Include the root INDEX.md too if present
+        root_idx = evidence_root / "INDEX.md"
+        if root_idx.exists():
+            present_indexes.insert(0, "INDEX.md")
         if missing_indexes:
             return {"id": msc_id, "status": "FAIL", "citations": missing_indexes[:5],
                     "note": f"{len(missing_indexes)} directories missing INDEX.md"}
-        return {"id": msc_id, "status": "PASS", "citations": ["all directories indexed"]}
+        return {"id": msc_id, "status": "PASS", "citations": present_indexes}
 
     if all(s == "PASS" for s in statuses):
         return {"id": msc_id, "status": "PASS", "citations": cited}

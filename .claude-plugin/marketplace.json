@@ -5,14 +5,14 @@
     "email": "krzemienski@gmail.com"
   },
   "metadata": {
-    "description": "Crucible local development marketplace — single-plugin marketplace for evidence-gated task validation",
-    "version": "0.1.1"
+    "description": "Crucible local development marketplace \u2014 single-plugin marketplace for evidence-gated task validation",
+    "version": "0.2.1"
   },
   "plugins": [
     {
       "name": "crucible",
       "source": "./",
-      "version": "0.1.1",
+      "version": "0.2.1",
       "description": "Evidence-gated task planning, execution, and validation. Refuses completion without quorum-approved proof.",
       "homepage": "https://github.com/krzemienski/crucible"
     }
