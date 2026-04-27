@@ -4,6 +4,120 @@ All notable changes to the Crucible plugin are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-04-27 — Setup mechanism + comprehensive documentation surface
+
+The first minor bump since v0.2 ships two things that were missing in v0.2.x:
+(1) a real install path for Crucible's discipline (the marker-managed CLAUDE.md
+fragment installer modeled on `oh-my-claudecode:omc-setup`), and (2) the deep
+documentation surface — `docs/OVERVIEW.md` (concepts, architecture, evidence
+model, gate sequence, quorum mechanics, refusal protocol) and `docs/USAGE.md`
+(per-command reference for all 19, per-skill reference for all 11, per-subagent
+reference for all 10, three worked walkthroughs, refusal recovery playbook,
+FAQ).
+
+### Added
+
+- **`/crucible:setup` skill** at `skills/setup/SKILL.md` with phased execution
+  (4 phase files: `phases/01-install-claude-md.md`, `02-activate.md`,
+  `03-verify.md`, `04-welcome.md`). Idempotent. Modeled directly on the
+  `oh-my-claudecode:omc-setup` pattern: marker-managed CLAUDE.md block
+  (`<!-- CRUCIBLE:START -->...<!-- CRUCIBLE:END -->`), backup before write,
+  validate after write. Supports `--local` / `--global` / `--force` /
+  `--uninstall`.
+- **Setup helper scripts** at `scripts/setup-claude-md.sh` and
+  `scripts/setup-progress.sh`. The CLAUDE.md installer uses awk to strip an
+  existing marker block, appends the new fragment, and validates marker
+  presence post-write. The progress tracker persists a JSON state at
+  `.crucible/setup-progress.json` for resume support.
+- **Helper library** at `scripts/lib/config-dir.sh` with
+  `resolve_claude_config_dir()` and `resolve_project_root()` (handles
+  `CLAUDE_CONFIG_DIR` env, sentinel walk-up, and macOS/Linux quirks).
+- **Canonical CLAUDE.md fragment** at `docs/CRUCIBLE-CLAUDE-MD.md` —
+  composed from the four canonical rule templates. This is the file
+  `/crucible:setup` installs into your project's CLAUDE.md.
+- **Rule templates** copied to `templates/rules/` (was previously only at
+  top-level `rules/`). Plugin-shipped rules live under `templates/`; the
+  top-level `rules/` directory remains for in-tree development reference.
+- **`docs/OVERVIEW.md`** — 684 lines / ~30KB. Architecture, philosophy,
+  four iron rules, component architecture, the forge pipeline (10 phases
+  with refusal triggers), evidence model, quorum mechanics, gate sequence
+  (VG-0..VG-15), refusal protocol, retry semantics, activation lifecycle,
+  hooks layer, comparison to alternatives, glossary.
+- **`docs/USAGE.md`** — 966 lines / ~32KB. 60-second tour, first-run
+  lifecycle, three worked walkthroughs (green path, autopilot recovery,
+  unrecoverable refusal), command reference for all 19 commands with
+  examples, skill reference for all 11, subagent reference for all 10,
+  hook reference, refusal recovery playbook, authoring extensions, common
+  workflows, troubleshooting matrix, FAQ.
+- **Doctor checks 7-9** added to `commands/doctor.md` and verified end-to-end:
+  - Check 7: setup sentinel (`~/.claude/.crucible-config.json`)
+  - Check 8: CLAUDE.md marker block presence
+  - Check 9: setup script integrity (executable bits)
+
+### Changed
+
+- **`README.md` rewritten as top-of-funnel.** Was 268 lines / 13KB trying
+  to cover everything; now 247 lines / ~7KB pointing at `docs/OVERVIEW.md`
+  and `docs/USAGE.md` for depth. Sections retained: 60-second pitch, what's
+  in the box, why it exists, quick start, command tiers (at-a-glance), four
+  iron rules, opt-in activation, refusal philosophy, status table.
+- **Activation section** now leads with `/crucible:setup` (the canonical
+  entrypoint) instead of manual `mkdir -p .crucible && touch
+  .crucible/active`.
+
+### Verified at release
+
+Frontmatter integrity:
+```
+✓ 19/19 commands have valid YAML frontmatter
+✓ 11/11 skills have valid YAML frontmatter
+✓ 10/10 agents have valid YAML frontmatter
+```
+
+Doctor-equivalent battery (run manually since `/crucible:doctor` requires
+a fresh Claude Code session post-install):
+```
+✓ manifest         plugin.json valid (v0.3.0)
+✓ installed        crucible@crucible-local enabled
+✓ commands         19/19 present
+✓ skills           11/11 present
+✓ agents           10/10 present
+✓ hooks            4/4 events registered (SessionStart/Pre/Post/Stop)
+✓ rule templates   4/4 present
+✓ sdk reachable    claude_agent_sdk 0.1.68
+✓ activation       .crucible/active present in build context
+✓ CLAUDE.md block  markers START + END both in docs/CRUCIBLE-CLAUDE-MD.md
+✓ setup scripts    setup-claude-md.sh + setup-progress.sh executable
+⚠ setup sentinel   ABSENT (expected — first user runs /crucible:setup)
+```
+
+Manifest schema validation:
+```
+$ claude plugin validate /Users/nick/Desktop/crucible/crucible-plugin
+✔ Validation passed
+```
+
+Version parity:
+```
+.claude-plugin/plugin.json:                "version": "0.3.0"
+.claude-plugin/marketplace.json metadata:  "version": "0.3.0"
+.claude-plugin/marketplace.json plugins[0]:"version": "0.3.0"
+```
+
+### Migration notes
+
+- **Existing v0.2.x users:** run `/crucible:setup --local` (or `--global`)
+  to install the new CLAUDE.md marker block. If you previously hand-edited
+  rules into your CLAUDE.md, the `--force` flag overwrites cleanly; the
+  installer takes a backup first.
+- **No breaking API changes.** All 19 commands, all 11 skills, all 10
+  subagents, all 4 hooks behave identically to v0.2.1. The v0.3.0 surface
+  is additive: setup mechanism, deep docs, doctor checks 7-9.
+- **Cache refresh:** Claude Code's plugin cache keys on the marketplace
+  version. Bumping `marketplace.json` from 0.2.1 → 0.3.0 forces the cache
+  to pick up the new files; otherwise `claude plugin update` is a no-op.
+  Both `metadata.version` and `plugins[0].version` are bumped in lockstep.
+
 ## [0.2.1] — 2026-04-26 — Documentation patch: surface 14 additional commands shipped in v0.2.0
 
 v0.2.0 inadvertently shipped 19 slash commands but its CHANGELOG only documented 5. This release documents the 14 additional commands that were already on disk. No code changes — documentation only.

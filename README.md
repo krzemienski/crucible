@@ -2,216 +2,246 @@
 
 > **What survives the test, ships.**
 
-A Claude Code plugin that converts task execution into a scientific procedure. Every task — planning, validation-only, or SDK-driven — produces a reproducible evidence package. Completion is forbidden unless every mandatory success criterion is backed by inspectable evidence and a quorum of independent Oracles approves.
+A Claude Code plugin that converts task execution into a scientific procedure.
+Every change-producing run produces a reproducible **evidence package**, and
+completion is forbidden unless every Mandatory Success Criterion is backed by
+an inspectable artifact and a quorum of independent Oracles approves.
 
-## What it does
+In one sentence: **Crucible is the gate between "I did the work" and "the
+work is done."**
 
-Crucible enforces an **evidence-first execution discipline** at the plugin layer. It:
+---
 
-- Records every step into a structured evidence directory
-- Refuses any completion claim that lacks an inspectable artifact
-- Convenes three independent reviewers and three Oracle auditors before allowing completion
-- Produces a machine-readable gate report (`completion-gate/report.json`) that any third party can audit
+## What's in the box
 
-## Why
+| | Count |
+|---|---|
+| Slash commands (`/crucible:*`) | **19** — three tiers: orchestration, authoring, inspection |
+| Skills | **11** — codebase-analysis, docs-research, planning, validation, evidence-indexing, session-log-audit, oracle-review, completion-gate, enable, disable, setup |
+| Subagents | **10** — planner, codebase-analyst, docs-researcher, validator, 3 reviewers, 3 oracles |
+| Hooks | **4** — SessionStart, PreToolUse, PostToolUse, Stop |
+| Bin scripts | **4** — hook handlers (read JSON stdin, exit 2 to block) |
+| Setup scripts | **2** — CLAUDE.md installer + progress tracker |
+| Rule templates | **4** — Iron-Rule, Cite-or-Refuse, Cite-Paths, No-Self-Review |
 
-LLM-driven engineering systems routinely declare success without proof. Crucible removes the option to do so.
+**Iron-Rule violations: 0.** Crucible was itself built under its own
+discipline — the build evidence package lives in `../evidence/` of this repo.
 
-## Components
+---
 
-| Component                     | Count | Purpose                                                            |
-|-------------------------------|-------|--------------------------------------------------------------------|
-| Skills (`crucible:*`)         | 10    | codebase-analysis, documentation-research, planning, validation, evidence-indexing, session-log-audit, oracle-review, completion-gate, **enable**, **disable** |
-| Subagents (`agents/*.md`)     | 10    | planner, codebase-analyst, documentation-researcher, validator, 3 reviewers, 3 Oracle auditors                                       |
-| Hooks (`hooks/hooks.json`)    | 4     | SessionStart, PreToolUse, PostToolUse, Stop — gate enforcement layer |
-| Bin scripts (`bin/*.sh`)      | 4     | session-start, pre-task, post-task, completion-attempt — read JSON from stdin, exit 2 to block on invariant violation |
+## Why it exists
 
-## Install
+LLM-driven engineering systems routinely declare success without proof. They
+claim a feature works because the code looks right; they claim a refactor is
+safe because it compiles; they emit "Done!" while leaving silent test
+failures and missing migrations behind. This isn't adversarial — it's the
+default failure mode of a context-bounded system trained to produce coherent
+text. Coherent text is not evidence.
 
-See [`INSTALL.md`](./INSTALL.md) for the full installation guide (prerequisites, three install paths, troubleshooting).
+Crucible removes the option to fake completion. Three moves at the plugin
+layer:
 
-Quick paths:
+1. **Hooks watch every tool use.** `PreToolUse` rejects writes to test
+   files, mocks, stubs, fixtures. `Stop` refuses session end unless
+   `evidence/completion-gate/report.json` shows `overall=COMPLETE`.
+
+2. **Verdicts cite paths or are invalid.** Every PASS / FAIL / APPROVE /
+   BLOCK must point to a specific file (and ideally line range). Prose
+   isn't a citation.
+
+3. **Independence is structural, not advisory.** The agent that produced
+   an artifact may not also approve it. Three reviewers in isolation.
+   Three Oracles in isolation. The synthesizer aggregates raw verdicts;
+   it never rewrites them.
+
+When Crucible says COMPLETE, an outside reviewer with only `evidence/` can
+independently verify. When it refuses, the refusal is structured,
+machine-readable, and remediable.
+
+---
+
+## Quick start
 
 ```bash
-# Path A: GitHub marketplace (recommended)
+# 1. install (once per machine)
 claude plugin marketplace add krzemienski/crucible
 claude plugin install crucible@crucible-local
 
-# Path B: Local marketplace
-claude plugin marketplace add /absolute/path/to/crucible-plugin
-claude plugin install crucible@crucible-local
+# 2. set up (once per project)
+cd my-project
+/crucible:setup --local
 
-# Path C: --plugin-dir (no install, ephemeral)
-claude --plugin-dir /absolute/path/to/crucible-plugin
+# 3. work
+/crucible:forge "Add /healthz endpoint that returns {status:ok}"
 ```
 
-Verify:
+If `/crucible:forge` refuses:
 
 ```bash
-claude plugin list | grep crucible
-# Expected: ❯ crucible@crucible-local  Version: 0.1.0  Status: ✔ enabled
+/crucible:remediate          # auto-generates delta plan from REFUSAL.md
+/crucible:forge              # retry
 ```
 
-## Activation (READ FIRST since v0.1.1)
+Or use `/crucible:autopilot <task>` to loop forge → remediate → forge up to
+3 attempts automatically.
 
-**Crucible is OPT-IN per project.** A user-scope install does NOT enforce in every project. To activate enforcement in a project:
+If you're stuck and need out:
 
 ```bash
-/crucible:enable
-# or:  mkdir -p .crucible && touch .crucible/active
+/crucible:disable             # clean opt-out
+touch .crucible/disabled      # nuclear opt-out
+CRUCIBLE_DISABLE=1 claude     # one-shell escape
 ```
 
-To deactivate (and unstick a blocked session):
+---
 
-```bash
-/crucible:disable
-# or:  rm .crucible/active
-```
+## Documentation
 
-Three escape hatches are available if a hook blocks you:
+| Doc | When to read it |
+|---|---|
+| [`docs/OVERVIEW.md`](./docs/OVERVIEW.md) | Architecture, philosophy, evidence model, gate sequence, quorum mechanics, refusal protocol — the conceptual reference |
+| [`docs/USAGE.md`](./docs/USAGE.md) | Per-command reference (all 19), per-skill reference (all 11), per-subagent reference (all 10), three worked walkthroughs, refusal recovery playbook, FAQ |
+| [`docs/CRUCIBLE-CLAUDE-MD.md`](./docs/CRUCIBLE-CLAUDE-MD.md) | The canonical CLAUDE.md fragment that `/crucible:setup` installs |
+| [`INSTALL.md`](./INSTALL.md) | Three install paths, prerequisites, troubleshooting, activation lifecycle |
+| [`CHANGELOG.md`](./CHANGELOG.md) | Release history (v0.1.0 → v0.3.0) |
 
-| Method | When to use |
-|--------|-------------|
-| `/crucible:disable` | Clean opt-out for this project |
-| `touch .crucible/disabled` | Kill switch — overrides `.crucible/active` |
-| `CRUCIBLE_DISABLE=1 claude` | Per-shell escape |
-
-The refusal stderr lists all hatches every time the gate blocks. See [`INSTALL.md`](./INSTALL.md#activation-lifecycle-since-v011) for full lifecycle.
-
-## Use
-
-Crucible exposes 10 skills via namespaced slash commands. After `/crucible:enable`, the Stop hook fires automatically on every session end.
-
-### The 10 skills (full inventory)
-
-| Skill | When to invoke | What it produces |
-|-------|----------------|------------------|
-| `/crucible:enable` | Before starting any Crucible workflow in a project | Creates `.crucible/active` sentinel; activates hooks |
-| `/crucible:disable` | When opting out of a project, or when blocked by mistake | Removes `.crucible/active`; hooks become silent |
-| `/crucible:planning` | Before any change-producing work | A plan with MSCs and an Oracle plan-review request |
-| `/crucible:validation` | To audit an existing system without modifying it | A markdown checklist of real-system checks (curl/jq/exit-code) |
-| `/crucible:codebase-analysis` | When you need a new repo's structure cited before planning | A summary of components + load-bearing files |
-| `/crucible:documentation-research` | When SDKs/APIs/specs are involved | Cited doc snippets at `evidence/documentation-research/` |
-| `/crucible:evidence-indexing` | After any evidence change | Refreshed `INDEX.md` for every evidence directory |
-| `/crucible:session-log-audit` | After a real Claude Code session against the plugin | Line-cited audit of pre/post/stop/skill/writes from session.jsonl |
-| `/crucible:oracle-review` | When you need an Oracle's perspective on a plan or evidence | An APPROVE/BLOCK verdict with cited blockers |
-| `/crucible:completion-gate` | At the very end of a task | `report.json` (overall=COMPLETE or REFUSED) and, on REFUSED, `REFUSAL.md` |
-
-### Detailed usage examples
-
-#### Example 1 — `/crucible:planning` for a feature
+For "what does X actually do?" questions, run:
 
 ```
-You: /crucible:planning
-     Add a /healthz endpoint to my FastAPI service.
-
-Crucible (via planner subagent):
-  1. Define MSCs:
-     - MSC-1: GET /healthz returns {"status":"ok"} with HTTP 200
-     - MSC-2: Endpoint registered in router
-     - MSC-3: A test invocation returns the expected JSON
-  2. Submit to oracle-auditor-1 for plan review.
-  3. On approval, hand off to executor.
-
-Artifacts produced:
-  - evidence/oracle-plan-reviews/<run-id>/plan.md
-  - evidence/oracle-plan-reviews/<run-id>/oracle-1-verdict.md
+/crucible:explain forge          # DAG of any pipeline
+/crucible:doctor                 # 9-check installation health
+/crucible:status                 # current gate state
 ```
 
-#### Example 2 — `/crucible:validation` checklist
+---
 
-```
-You: /crucible:validation
-     Verify GET /healthz returns {"status":"ok"} and 200.
+## Command tiers (at a glance)
 
-Crucible (via validator subagent):
-  Returns markdown checklist with 7 items, each naming a real
-  curl/jq invocation, expected output file (step-NN-*.txt),
-  and PASS/FAIL/REFUSAL criterion.
+### Tier 1 — Orchestration (the conductors)
 
-Iron Rule: this skill produces ZERO Write/Edit tool calls
-(verified via session-log audit's writes count = 0).
-```
+`/crucible:forge` · `/crucible:autopilot` · `/crucible:remediate` ·
+`/crucible:resume` · `/crucible:trial`
 
-See `evidence/validation-artifacts/20260425T091803Z-validation.md` in this repo's
-build evidence for a captured example (7-item checklist with curl/jq commands).
+`/crucible:forge` is the 80% case: codebase-analysis → docs-research →
+planning → oracle plan-review → execute → validation → evidence-indexing →
+3-reviewer consensus → 3-oracle quorum → completion-gate.
 
-#### Example 3 — `/crucible:completion-gate` at task end
+### Tier 2 — Authoring (extend Crucible itself)
 
-```
-You: /crucible:completion-gate
+`/crucible:setup` · `/crucible:stack-new` · `/crucible:skill-new` ·
+`/crucible:agent-new` · `/crucible:rule-new` · `/crucible:hook-new` ·
+`/crucible:command-new`
 
-Crucible (runs gate.py):
-  SEAL    MSC-1  documentation-research/SUMMARY.md
-  SEAL    MSC-2  prd/PRD.md
-  ...
-  SEAL    MSC-21 final-oracle-evidence-audit/blockers
-  APPROVE consensus  reviewer-consensus/decision.md
-  APPROVE quorum     final-oracle-evidence-audit/decision.md
-  overall: COMPLETE
+### Tier 3 — Inspection (read-only)
 
-  → exit 0 (Stop hook will allow session to end)
-```
+`/crucible:doctor` · `/crucible:status` · `/crucible:explain` ·
+`/crucible:fix` · `/crucible:graph`
 
-If any MSC fails:
+### Tier 0 — Activation primitives (composed by Tier 1)
 
-```
-  REFUSED  MSC-15 validation-artifacts EMPTY
-  overall: REFUSED — fix the cited gaps and re-run.
-  → exit 2 (Stop hook will refuse to let session end)
-```
+`/crucible:enable` · `/crucible:disable` · `/crucible:planning` ·
+`/crucible:validation` · `/crucible:codebase-analysis` ·
+`/crucible:documentation-research` · `/crucible:evidence-indexing` ·
+`/crucible:session-log-audit` · `/crucible:oracle-review` ·
+`/crucible:completion-gate` · `/crucible:plan-and-execute` ·
+`/crucible:validate` · `/crucible:audit`
 
-#### Example 4 — Stop event (automatic, you don't invoke this)
+Full reference — including allowed flags, refusal modes, and worked
+examples — lives in [`docs/USAGE.md`](./docs/USAGE.md).
 
-Crucible's `bin/completion-attempt.sh` fires on every session end:
+---
 
-```
-Hook Stop (Stop) error:
-REFUSED by Crucible completion-attempt hook.
-Reason: completion-gate/report.json shows overall=REFUSED (must be COMPLETE)
+## The four iron rules
 
-Crucible exists to refuse completion claims that lack evidence.
-Run /crucible:completion-gate to evaluate and produce report.json.
-If gate produces overall=REFUSED, fix the cited gaps and re-run.
-There is NO override flag. NO force-complete. Refusal is a feature.
-```
+These are installed into your project's `CLAUDE.md` by `/crucible:setup`,
+between `<!-- CRUCIBLE:START -->` and `<!-- CRUCIBLE:END -->` markers
+(idempotent, with backup).
 
-### Three-reviewer / Oracle quorum (advanced workflows)
+- **RL-1 — Iron Rule (no mocks).** Validation runs against real systems
+  only. Forbidden: mocks, stubs, fakes, fixtures, test files, test
+  frameworks, hand-written "expected" output presented as actual output.
+- **RL-2 — Cite or Refuse.** Every verdict cites a specific evidence file
+  path. Prose isn't a citation.
+- **RL-3 — No Self-Review.** The agent that produced an artifact may not
+  also review or approve it. Independence is structural.
+- **RL-4 — Cite Paths.** Citations must be maximally specific:
+  `file:lineN-M` ideal; bare directory only if the whole dir IS the
+  artifact; subtree paths invalid.
 
-For audits, releases, security-sensitive work:
+The canonical fragment with full text:
+[`docs/CRUCIBLE-CLAUDE-MD.md`](./docs/CRUCIBLE-CLAUDE-MD.md).
 
-1. After your task, dispatch 3 isolated reviewer subagents (`reviewer-a/b/c`) to
-   independently verify completeness, integrity, and Iron-Rule compliance.
-2. Synthesize their verdicts into `evidence/reviewer-consensus/decision.md` with
-   the keyword `UNANIMOUS PASS` (the gate looks for this exact string).
-3. Dispatch 3 Oracle auditors (`oracle-auditor-1/2/3`) for the final adversarial
-   audit. Quorum = ≥2/3 APPROVE + 0 unresolved blockers.
-4. Synthesize Oracle verdicts into `evidence/final-oracle-evidence-audit/decision.md`
-   with keyword `APPROVED`.
-5. Run `/crucible:completion-gate` — only now can it return `overall=COMPLETE`.
+---
 
-This is the workflow Crucible itself was built under (see `evidence/completion-gate/vg13-verdict.md` and `vg14-verdict.md` for live receipts).
+## Activation is opt-in
 
-## Architecture
+A user-scope install does **not** enforce in every project. Hooks are silent
+no-ops unless `${CLAUDE_PROJECT_DIR}/.crucible/active` exists. This was a
+deliberate v0.1.1 fix after the original design broke unrelated workflows.
 
-See `evidence/architecture/ARCHITECTURE.md` for the full system architecture document, which includes 7 Mermaid diagrams covering:
+Three escape hatches if you ever need out:
 
-- High-level component map (skills + agents + hooks + evidence + audit)
-- Tool-invocation lifecycle (Pre→Tool→Post→Stop with Iron-Rule branch)
-- Audit pipeline (session-log-audit → reviewer-consensus → oracle-quorum → completion-gate)
-- Reviewer-consensus parallel dispatch sequence
-- Oracle-quorum parallel dispatch sequence
-- State model (IDLE → PLANNING → ... → {COMPLETE | REFUSED})
-- Stop event sequence (gate.py decision flow)
+| Method | Scope |
+|---|---|
+| `/crucible:disable` | This project (clean opt-out) |
+| `touch .crucible/disabled` | This project (overrides active) |
+| `CRUCIBLE_DISABLE=1 claude` | One shell session |
 
-## Iron Rule
+The Stop-hook refusal message lists all four hatches inline so you never
+have to remember.
 
-If the real system doesn't work, fix the real system. **No** mocks, stubs, fakes, in-memory shims, `TEST_MODE`, hand-written transcripts, fixture-driven Oracle approvals, or any other substitute for real execution.
+Full lifecycle: [`INSTALL.md`](./INSTALL.md#activation-lifecycle).
 
-## Refusal discipline
+---
 
-Crucible exists to refuse. When evidence is missing, Crucible writes a structured `REFUSAL.md` and stops. There is no override flag. There is no force-complete. Refusal is a feature.
+## Refusal is a feature
+
+When evidence is missing or oracles BLOCK, Crucible writes a structured
+`REFUSAL.md` and stops. **There is no override flag. There is no
+force-complete.** A refusal is not a bug — it's the system functioning
+correctly.
+
+The refusal lists exactly which MSCs failed, with cited evidence paths and a
+machine-readable delta plan. Run `/crucible:remediate` and Crucible
+auto-generates a focused fix plan that targets only the failing criteria.
+
+If `autopilot` exits REFUSED at `--max-attempts`, the surviving cited gaps
+are real defects in the underlying system — not transient agent failures.
+Take the refusal to the team that owns the system.
+
+Recovery playbook: [`docs/USAGE.md#8-refusal-recovery-playbook`](./docs/USAGE.md#8-refusal-recovery-playbook).
+
+---
 
 ## Status
 
-This is the first release (v0.1.0). The plugin was itself built under its own discipline: 16 evidence gates (VG-0 through VG-15), three-reviewer consensus, and final Oracle quorum audit. The build evidence package lives alongside this plugin under `../evidence/`.
+| Version | Date | Highlights |
+|---|---|---|
+| **0.3.0** | 2026-04-27 | Comprehensive docs (`docs/OVERVIEW.md`, `docs/USAGE.md`); README rewritten as top-of-funnel; setup-mechanism shipped (`scripts/`, `skills/setup/`, `templates/rules/`) — **this release** |
+| 0.2.1 | 2026-04-26 | Documented 14 commands shipped silently in 0.2.0 |
+| 0.2.0 | 2026-04-25 | PRD gap remediation (16/21 closed); 5 new top-level commands; 4 declarative rules |
+| 0.1.1 | 2026-04-25 | Critical opt-in fix: hooks were enforcing globally and breaking unrelated projects |
+| 0.1.0 | 2026-04-25 | Initial release |
+
+Full history: [`CHANGELOG.md`](./CHANGELOG.md).
+
+---
+
+## License
+
+[MIT](./LICENSE) © Nick Krzemienski
+
+---
+
+## Build provenance
+
+Crucible was itself built under its own discipline. Sixteen verification
+gates (VG-0 through VG-15) plus reviewer-consensus + oracle-quorum gated
+its delivery. The full build evidence package — including 26 cited
+upstream sources, dual-path install receipts, four robust trials,
+session-log audits with line citations, three independent reviewer
+reports, and three Oracle audit reports — lives at
+[`../evidence/`](../evidence/) (in this repo, alongside the plugin).
+
+This is the longest possible answer to "does it work?" — the system you're
+about to install was held to the same standard it imposes on yours.
