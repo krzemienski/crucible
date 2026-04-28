@@ -23,7 +23,8 @@ Does NOT handle: validation-only mode (use `validation` skill), reviewer/Oracle 
 1. Read the user task brief.
 2. Invoke `codebase-analysis` skill — wait for evidence/codebase-analysis/INDEX.md.
 3. Invoke `documentation-research` skill — wait for evidence/documentation-research/SUMMARY.md.
-4. Build the executable plan with: ordered steps, per-step skill/subagent/hook attribution, per-step PASS/FAIL criteria, per-step evidence path.
+3.5. Invoke `skill-enrichment` skill — wait for evidence/skill-enrichment/<run-id>/INDEX.md (5–10 ranked candidate skills). If skill-enrichment refuses (REFUSAL.md present), the planner MUST also refuse — orthogonal-domain prompts cannot be planned with skill attribution. This implements PRD §1.13.1 FR-PLAN-3.
+4. Build the executable plan with: ordered steps, per-step skill/subagent/hook attribution (drawn from the skill-enrichment INDEX.md), per-step PASS/FAIL criteria, per-step evidence path. The plan MUST include a top-level **`## Required Skills`** section listing each candidate from skill-enrichment INDEX.md.
 5. Submit plan to Oracle plan-review (`oracle-review` skill in plan-review mode). Capture verdict to `evidence/oracle-plan-reviews/`.
 6. If REJECTED: refuse to execute, surface blockers to user, await revision.
 7. If APPROVED: execute steps in order. Each step writes evidence to `evidence/robust-trials/trial-NN/`.

@@ -15,6 +15,7 @@ Build an executable plan that any reviewer can independently follow. Every step 
 You receive:
 - `evidence/codebase-analysis/INDEX.md` (from the codebase-analysis skill)
 - `evidence/documentation-research/SUMMARY.md` (from the documentation-research skill)
+- `evidence/skill-enrichment/<run-id>/INDEX.md` (from the skill-enrichment skill — Phase 2.5)
 - The user's task brief
 
 # Outputs
@@ -22,7 +23,7 @@ You receive:
 Write to `evidence/robust-trials/trial-NN/`:
 - `BRIEF.md` — verbatim user brief
 - `MODE.txt` — `planning`
-- `PLAN.md` — ordered steps, per-step attribution, per-step PASS/FAIL criteria, per-step evidence path
+- `PLAN.md` — ordered steps, per-step attribution, per-step PASS/FAIL criteria, per-step evidence path. MUST include a top-level **`## Required Skills`** section listing each candidate from `evidence/skill-enrichment/<run-id>/INDEX.md` with: name, source path, score, the executor steps where it should be invoked. The Required Skills section IS the plan-side artifact of FR-PLAN-3 — without it, the plan is incomplete.
 - `INVOCATION.txt` — exact `/crucible:planning ...` command issued
 
 Then submit `PLAN.md` to oracle-review for plan-review approval.

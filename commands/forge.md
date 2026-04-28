@@ -31,6 +31,31 @@ Invoke skill `crucible:documentation-research` for every external dependency in 
 Required output: `evidence/documentation-research/SUMMARY.md` with ≥3 cited facts per source.
 Refuse forge if SUMMARY cites <3 facts or any source has only `(none)` placeholder.
 
+### Phase 2.5 — Skill Discovery & Enrichment
+Invoke skill `crucible:skill-enrichment`. The skill spawns the `skill-discoverer`
+subagent which runs `crucible-plugin/skills/skill-enrichment/scripts/discover_skills.py`
+against the real filesystem (`~/.claude/skills/`, `~/.claude/plugins/<plugin>/skills/`,
+project `.claude/skills/`, in-tree `crucible-plugin/skills/`). Parses YAML frontmatter
+only (no body loads). Filters to enabled plugins via `~/.claude/plugins/installed_plugins.json`.
+Scores relevance via lexical-overlap of the task brief vs each skill's description
+(capped at 1,536 chars). Emits **5–10 ranked candidates**.
+
+Required output: `evidence/skill-enrichment/<run-id>/INDEX.md` containing 5–10 ranked
+candidate skills, each citing a real SKILL.md path. Plus `CANDIDATES.md` (long-form
+rationale per candidate, ≥3 sentences each), `SKIPPED.md` (audit trail), and
+`raw-inventory.txt` (full enumerated list).
+
+Refuse forge if `discover_skills.py` exits 2 (fewer than 5 candidates above relevance
+floor — i.e., the task brief is orthogonal to the available skill ecosystem). Refusal
+writes `evidence/skill-enrichment/<run-id>/REFUSAL.md` and forge stops at this phase.
+There is no override flag — this is FR-PLAN-3-correct behavior. Pad-prevention is the
+load-bearing feature for orthogonal-domain prompts.
+
+The candidate list produced by Phase 2.5 is consumed by Phase 3 (Planning): the
+planner subagent injects a "Required Skills" section into PLAN.md naming each
+candidate, so executors invoke them during Phase 5. This implements PRD §1.13.1
+**FR-PLAN-3** — *"Identify required skills and declare them in the plan."*
+
 ### Phase 3 — Planning
 Invoke skill `crucible:planning` (delegates to the `planner` subagent).
 Required output: `evidence/oracle-plan-reviews/<run-id>/plan.md` with explicit MSCs and PASS/FAIL criteria per item.
@@ -152,6 +177,7 @@ For an automated retry loop: /crucible:autopilot.
 | 0 | `.crucible/active` missing |
 | 1 | codebase-analysis SUMMARY.md missing/empty |
 | 2 | documentation-research has <3 facts per source |
+| 2.5 | skill-enrichment found <5 candidates above floor (orthogonal-domain refusal) |
 | 3 | plan.md missing or has no MSC list |
 | 4 | oracle plan-review BLOCK |
 | 5 | execution step failed without proper plan-spec'd PASS/FAIL handling |

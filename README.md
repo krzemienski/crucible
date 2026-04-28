@@ -17,11 +17,12 @@ work is done."**
 | | Count |
 |---|---|
 | Slash commands (`/crucible:*`) | **19** — three tiers: orchestration, authoring, inspection |
-| Skills | **11** — codebase-analysis, docs-research, planning, validation, evidence-indexing, session-log-audit, oracle-review, completion-gate, enable, disable, setup |
-| Subagents | **10** — planner, codebase-analyst, docs-researcher, validator, 3 reviewers, 3 oracles |
+| Skills | **12** — codebase-analysis, docs-research, planning, **skill-enrichment** (NEW v0.4), validation, evidence-indexing, session-log-audit, oracle-review, completion-gate, enable, disable, setup |
+| Subagents | **11** — planner, codebase-analyst, docs-researcher, **skill-discoverer** (NEW v0.4), validator, 3 reviewers, 3 oracles |
 | Hooks | **4** — SessionStart, PreToolUse, PostToolUse, Stop |
 | Bin scripts | **4** — hook handlers (read JSON stdin, exit 2 to block) |
 | Setup scripts | **2** — CLAUDE.md installer + progress tracker |
+| Skill scripts | **3** — `gate.py` (completion gate), `build_index.py` (evidence indexer), `discover_skills.py` (NEW v0.4: skill-enrichment) |
 | Rule templates | **4** — Iron-Rule, Cite-or-Refuse, Cite-Paths, No-Self-Review |
 
 **Iron-Rule violations: 0.** Crucible was itself built under its own
@@ -100,10 +101,10 @@ CRUCIBLE_DISABLE=1 claude     # one-shell escape
 | Doc | When to read it |
 |---|---|
 | [`docs/OVERVIEW.md`](./docs/OVERVIEW.md) | Architecture, philosophy, evidence model, gate sequence, quorum mechanics, refusal protocol — the conceptual reference |
-| [`docs/USAGE.md`](./docs/USAGE.md) | Per-command reference (all 19), per-skill reference (all 11), per-subagent reference (all 10), three worked walkthroughs, refusal recovery playbook, FAQ |
+| [`docs/USAGE.md`](./docs/USAGE.md) | Per-command reference (all 19), per-skill reference (all 12), per-subagent reference (all 11), three worked walkthroughs, refusal recovery playbook, FAQ |
 | [`docs/CRUCIBLE-CLAUDE-MD.md`](./docs/CRUCIBLE-CLAUDE-MD.md) | The canonical CLAUDE.md fragment that `/crucible:setup` installs |
 | [`INSTALL.md`](./INSTALL.md) | Three install paths, prerequisites, troubleshooting, activation lifecycle |
-| [`CHANGELOG.md`](./CHANGELOG.md) | Release history (v0.1.0 → v0.3.0) |
+| [`CHANGELOG.md`](./CHANGELOG.md) | Release history (v0.1.0 → v0.4.0) |
 
 For "what does X actually do?" questions, run:
 

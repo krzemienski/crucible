@@ -238,14 +238,18 @@ control or when debugging a specific phase.
 
 ## 5. The forge pipeline
 
-`/crucible:forge` runs ten phases. Each phase produces a specific artifact in
-`evidence/`. Each phase has a refusal trigger that halts the pipeline if
-preconditions are not met.
+`/crucible:forge` runs **eleven phases** (10 numbered + Phase 2.5). Each phase
+produces a specific artifact in `evidence/`. Each phase has a refusal trigger
+that halts the pipeline if preconditions are not met. Phase 2.5 was added in
+v0.4.0 to implement PRD §1.13.1 FR-PLAN-3 ("Identify required skills and
+declare them in the plan.").
 
 ```mermaid
 flowchart LR
   A[1. codebase-analysis] --> B[2. documentation-research]
-  B --> C[3. planning]
+  B --> B5[2.5 skill-enrichment]
+  B5 -->|≥3 candidates| C[3. planning]
+  B5 -->|<3 above floor| X0[REFUSAL.md]
   C --> D[4. oracle plan-review]
   D -->|APPROVED| E[5. execute]
   D -->|BLOCKED| X1[REFUSAL.md]
@@ -264,18 +268,39 @@ flowchart LR
 |---|---|---|---|
 | 1 | codebase-analysis | `crucible:codebase-analysis` | repo not analyzable |
 | 2 | docs-research | `crucible:documentation-research` | missing upstream sources |
-| 3 | planning | `crucible:planning` (planner subagent) | MSCs unspecified or unmeasurable |
+| **2.5** | **skill-enrichment** (NEW v0.4) | **`crucible:skill-enrichment` (skill-discoverer subagent)** | **<3 candidates above relevance floor with overlap≥2 (orthogonal-domain refusal)** |
+| 3 | planning | `crucible:planning` (planner subagent) | MSCs unspecified or unmeasurable; missing `## Required Skills` section |
 | 4 | oracle plan-review | `crucible:oracle-review` (3 oracles) | ≥1 BLOCK with cited blockers |
-| 5 | execute | (host session) | hook rejects test/mock writes |
+| 5 | execute | (host session, invoking discovered skills) | hook rejects test/mock writes |
 | 6 | validation | `crucible:validation` (validator subagent) | Iron Rule violation |
 | 7 | evidence-indexing | `crucible:evidence-indexing` | dirs left un-indexed |
 | 8 | 3-reviewer consensus | `crucible:reviewer-consensus` (3 reviewers) | not unanimous PASS |
 | 9 | 3-oracle quorum | `crucible:oracle-review` (3 oracles) | <2/3 APPROVE |
 | 10 | completion-gate | `crucible:completion-gate` | any MSC missing or BLOCKED |
 
-Phases 1-4 are pre-execution. Phases 5-7 are execution + immediate validation.
-Phases 8-10 are post-execution audit. **The pipeline halts at the first
-refusal.** No "best effort" advancement.
+Phases 1-2.5 are pre-execution discovery. Phase 3-4 are pre-execution planning.
+Phases 5-7 are execution + immediate validation. Phases 8-10 are post-execution
+audit. **The pipeline halts at the first refusal.** No "best effort" advancement.
+
+### Phase 2.5 details (NEW v0.4.0)
+
+The skill-enrichment skill walks the user's entire skill ecosystem:
+
+- `~/.claude/skills/` (personal user-global)
+- Every enabled plugin under `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/skills/` (resolved via `installed_plugins.json` v2 schema's `installPath` records — NOT the empty stub directories at `~/.claude/plugins/<plugin>/`)
+- `<project>/.claude/skills/` (project-local)
+- `<project>/crucible-plugin/skills/` (in-tree plugin during development)
+
+For each `SKILL.md` found, the skill parses YAML frontmatter only (no body
+loads — frontmatter is the discovery surface per Claude Code's skills docs).
+Description is capped at 1,536 chars (matches Claude Code's skill-listing
+truncation). Score = `|overlap| / |brief_tokens|` (recall over brief), filtered
+by absolute `overlap_count >= 2` to kill 1-token noise on short briefs.
+
+Output is 5–10 ranked candidates (configurable via env: `MIN_CANDIDATES=3`,
+`MAX_CANDIDATES=10`, `SCORE_FLOOR=0.10`, `MIN_OVERLAP=2`). Refuses with `exit 2`
++ `REFUSAL.md` when fewer than `MIN_CANDIDATES` candidates pass both filters.
+Pad-prevention is the load-bearing feature for orthogonal-domain prompts.
 
 ---
 
@@ -672,7 +697,7 @@ Crucible hook still mechanically prevents anyone from cheating the result.
 | **Sentinel** | `.crucible/active` — presence = enabled in this project. |
 | **Kill switch** | `.crucible/disabled` or `CRUCIBLE_DISABLE=1` — overrides active. |
 | **Refusal** | Structured halt with `REFUSAL.md`. Not a bug; the feature. |
-| **Forge** | The 10-phase end-to-end pipeline. The conductor. |
+| **Forge** | The 11-phase end-to-end pipeline (10 numbered + Phase 2.5 skill-enrichment). The conductor. |
 | **Quorum** | ≥2 of 3 APPROVE + 0 unresolved blockers. |
 | **Consensus** | Unanimous PASS across 3 reviewers. |
 | **SDK origin** | Session was driven by `claude_agent_sdk`, not interactive CLI. |

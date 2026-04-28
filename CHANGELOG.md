@@ -4,6 +4,62 @@ All notable changes to the Crucible plugin are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-04-28 — Phase 2.5 Skill Discovery & Enrichment (FR-PLAN-3)
+
+Implements PRD §1.13.1 **FR-PLAN-3** — *"Identify required skills and declare them in the plan."* The forge pipeline grows from 10 phases to **11**: a new Phase 2.5 (Skill Discovery & Enrichment) runs after documentation-research and before planning. It walks the user's entire skill ecosystem (`~/.claude/skills/`, every enabled plugin under `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/skills/`, project `.claude/skills/`, and the in-tree `crucible-plugin/skills/`), parses YAML frontmatter only (no body loads — frontmatter is the discovery surface per Claude Code skills doc), filters to enabled plugins via `installed_plugins.json` schema v2, scores via lexical overlap of the task brief vs each skill's description (capped at 1,536 chars per Claude Code's skill-listing truncation), and emits 5–10 ranked candidates. The planner injects them into PLAN.md's new **`## Required Skills`** section so executors invoke them during Phase 5.
+
+### Empirical validation (A/B harness)
+
+Validated end-to-end by **8 real SDK harness runs** (4 baseline + 4 treatment) over a 4-prompt corpus (3 positive + 1 negative control). Every run produced a real `~/.claude/projects/.../<session-id>.jsonl` (126K–225K bytes each). Smoking-gun causality: P1 treatment ("Audit a React component for WCAG 2.1 AA accessibility issues.") JSONL line 50 contains the literal `tool_use` block invoking `validationforge:accessibility-audit` — the #1 ranked candidate from Phase 2.5's INDEX (score 0.6667, overlap=4). All 4 baselines invoked 0 candidate skills. Negative control (N1: "Tell me a joke about pirates.") correctly produced REFUSAL.md (0 above floor; 766 SKILL.md files enumerated). Three independent reviewers confirmed 20/20 MSCs PASS, 0 Iron-Rule violations.
+
+### Added
+
+- **`/crucible:skill-enrichment` skill** at `skills/skill-enrichment/SKILL.md`. Discovers and ranks skills relevant to a task brief from the user's entire skill ecosystem. Frontmatter description ≤1,536 chars (matches Claude Code skill-listing truncation). Refuses (exit 2 + REFUSAL.md) when fewer than 3 candidates score above the relevance floor with absolute token-overlap ≥ 2 — orthogonal-domain protection, no padding.
+- **`skill-discoverer` subagent** at `agents/skill-discoverer.md`. Read-only (Read, Grep, Glob, Bash). Spawns from the skill-enrichment skill. Surfaces refusals verbatim to the planner.
+- **`scripts/discover_skills.py`** at `skills/skill-enrichment/scripts/discover_skills.py`. Real Python 3.10+. Walks 4 sanctioned scopes; resolves plugin skills via `installed_plugins.json` v2 `installPath` records (NOT the empty-stub `~/.claude/plugins/<plugin>/` directories). Lexical-overlap scoring with stopword filter and minimum absolute overlap of 2 tokens to kill 1-token noise on short briefs. Configurable via env: `TASK_BRIEF`, `EVIDENCE_TARGET`, `SCORE_FLOOR` (default 0.10), `MIN_OVERLAP` (default 2), `MIN_CANDIDATES` (default 3), `MAX_CANDIDATES` (default 10).
+- **A/B harness wrapper** at `.crucible-sdk-harness/sdk_forge_variant.py`. Peer to `sdk_planning.py`. Accepts `--variant=baseline|treatment --prompt-id=P1|P2|P3|N1`. Captures session JSONL via real `claude_agent_sdk.query()`. Computes `phase-25-fired.txt` (Bash discover_skills.py count) and `skill-invocations.txt` (Skill tool-use names) by post-processing the real session log.
+- **`max_turns` kwarg** on `.crucible-sdk-harness/_common.py:run_harness()`. Backward-compatible (default still 4). Treatment harness runs use 8; baseline 6.
+
+### Changed
+
+- **`commands/forge.md`** — inserted **Phase 2.5** section between Phase 2 and Phase 3 (additive; Phase 3+ NOT renumbered to preserve autopilot.md's parser stability). Refusal-modes table grew row `2.5` (orthogonal-domain refusal). File grew from 7,137 → 8,873 bytes.
+- **`agents/planner.md`** — added third Input (`evidence/skill-enrichment/<run-id>/INDEX.md`) and required `## Required Skills` section in PLAN.md output schema. The Required Skills section IS the plan-side artifact of FR-PLAN-3 — without it, the plan is incomplete.
+- **`skills/planning/SKILL.md`** — added Workflow step 3.5 invoking skill-enrichment between docs-research and planning. Refusal propagates: if skill-enrichment refuses (orthogonal domain), the planner refuses too.
+
+### Iron Rule discipline
+
+- No mocks, no stubs, no fixtures, no test files anywhere in the new code paths.
+- No SDK substitution: harness uses real `claude_agent_sdk.query()`, not `requests.post` to the Messages API.
+- All harness JSONL is byte-stream output from real `claude-code` v2.1.121 subprocesses (real msg_ IDs, toolu_ IDs, parentUuid chains, real cache_creation_input_tokens, real durationMs progressions).
+- Negative-control N1 produces REFUSAL.md rather than padding — refusal is the load-bearing feature that proves the floor works.
+
+### Empirical evidence (citations)
+
+| MSC | Citation |
+|-----|----------|
+| MSC-SE-EMP-3 | `evidence/skill-enrichment-empirical/20260428T175056Z/{P1,P2,P3,N1}/treatment/phase-25-fired.txt` |
+| MSC-SE-EMP-6 | `evidence/skill-enrichment-empirical/20260428T175056Z/P1/treatment/skill-invocations.txt` |
+| MSC-SE-EMP-7 | `evidence/skill-enrichment-empirical/20260428T175056Z/{P1,P2,P3,N1}/baseline/skill-invocations.txt` |
+| MSC-SE-EMP-8 | `evidence/skill-enrichment-empirical/20260428T175056Z/N1/treatment/skill-enrichment-output/REFUSAL.md` |
+| Reviewer consensus | `evidence/reviewer-consensus/decision.md` (literal `UNANIMOUS PASS`) |
+| Validation summary | `evidence/validation-artifacts/20260428T175056Z.md` |
+| A/B summary | `evidence/skill-enrichment-empirical/20260428T175056Z/A-B-summary.md` |
+
+### What's in the box (updated counts)
+
+| | v0.3.0 | v0.4.0 |
+|---|---|---|
+| Slash commands (`/crucible:*`) | 19 | 19 (forge.md grew Phase 2.5; no new command) |
+| Skills | 11 | **12** (+ skill-enrichment) |
+| Subagents | 10 | **11** (+ skill-discoverer) |
+| Hooks | 4 | 4 |
+| Bin scripts | 4 | 4 |
+| Setup scripts | 2 | 2 |
+| Skill scripts (Python) | 2 | **3** (+ discover_skills.py) |
+| Rule templates | 4 | 4 |
+
+---
+
 ## [0.3.0] — 2026-04-27 — Setup mechanism + comprehensive documentation surface
 
 The first minor bump since v0.2 ships two things that were missing in v0.2.x:

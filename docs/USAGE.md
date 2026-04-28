@@ -15,8 +15,8 @@ that `/crucible:setup` installs, read [`./CRUCIBLE-CLAUDE-MD.md`](./CRUCIBLE-CLA
 2. [First-run lifecycle](#2-first-run-lifecycle)
 3. [Three working examples](#3-three-working-examples)
 4. [Command reference (all 19)](#4-command-reference-all-19)
-5. [Skill reference (all 11)](#5-skill-reference-all-11)
-6. [Subagent reference (all 10)](#6-subagent-reference-all-10)
+5. [Skill reference (all 12)](#5-skill-reference-all-12)
+6. [Subagent reference (all 11)](#6-subagent-reference-all-11)
 7. [Hook reference (all 4)](#7-hook-reference-all-4)
 8. [Refusal recovery playbook](#8-refusal-recovery-playbook)
 9. [Authoring extensions](#9-authoring-extensions)
@@ -110,7 +110,7 @@ You: /crucible:forge
      {"status":"ok"} with HTTP 200.
 ```
 
-Crucible runs the 10-phase pipeline. You'll see (abridged):
+Crucible runs the 11-phase pipeline (10 numbered + Phase 2.5 skill-enrichment, v0.4+). You'll see (abridged):
 
 ```
 [1/10] codebase-analysis ........ ✓ evidence/codebase-analysis/<id>/SUMMARY.md
@@ -175,8 +175,21 @@ Crucible — phase 2 (documentation-research):
   → evidence/documentation-research/20260427T145630Z/SUMMARY.md
     cited 4 FastAPI sources (decorators, response_model, status_code, JSONResponse)
 
+Crucible — phase 2.5 (skill-enrichment, NEW v0.4):
+  Dispatching skill-discoverer subagent...
+  Walking 4 scopes: ~/.claude/skills/, ~/.claude/plugins/cache/**/skills/,
+                    ./.claude/skills/, ./crucible-plugin/skills/
+  Enumerated 869 SKILL.md files. Scored against task brief.
+  → evidence/skill-enrichment/20260427T145700Z/INDEX.md
+    Top 5 ranked candidates (overlap≥2, score≥0.10):
+      1. backend-development         score 0.5714 overlap 4
+      2. ck:python-best-practices    score 0.4286 overlap 3
+      3. fastapi-routes              score 0.4286 overlap 3
+      4. api-design                  score 0.2857 overlap 2
+      5. ck:debug                    score 0.2857 overlap 2
+
 Crucible — phase 3 (planning):
-  Dispatching planner subagent...
+  Dispatching planner subagent (consumes skill-enrichment INDEX)...
   → evidence/oracle-plan-reviews/20260427T145700Z/plan.md
 
   MSCs:
@@ -532,7 +545,7 @@ Use these directly for fine-grained control or when debugging a specific phase.
 
 ---
 
-## 5. Skill reference (all 11)
+## 5. Skill reference (all 12)
 
 Skills are composable capability units. Tier-1 commands (`forge`, `autopilot`)
 chain skills; you can also invoke them directly.
@@ -544,7 +557,8 @@ chain skills; you can also invoke them directly.
 | `crucible:disable` | Opt out of enforcement temporarily | Removes `.crucible/active`; preserves `evidence/` |
 | `crucible:codebase-analysis` | Before planning in an unfamiliar repo | `evidence/codebase-analysis/<id>/SUMMARY.md` |
 | `crucible:documentation-research` | When SDKs/APIs/specs are involved | `evidence/documentation-research/<id>/sources/*.md` + `SUMMARY.md` |
-| `crucible:planning` | Before any change-producing work | `evidence/oracle-plan-reviews/<id>/plan.md` (with MSCs) |
+| **`crucible:skill-enrichment`** (NEW v0.4) | After docs-research, before planning — Phase 2.5 of forge | `evidence/skill-enrichment/<id>/INDEX.md` (5–10 ranked skill candidates) + `CANDIDATES.md` (rationale) + `SKIPPED.md` (audit trail) + `raw-inventory.txt`. Refuses with `REFUSAL.md` for orthogonal-domain prompts. |
+| `crucible:planning` | Before any change-producing work | `evidence/oracle-plan-reviews/<id>/plan.md` (with MSCs + Required Skills section, v0.4+) |
 | `crucible:validation` | To audit a system without modifying it | Markdown checklist; produces zero writes |
 | `crucible:evidence-indexing` | After any evidence change | Refreshed `INDEX.md` for every `evidence/` subdir |
 | `crucible:session-log-audit` | After a real CC session | `evidence/session-logs/<id>/INDEX.md` with line citations |
@@ -570,16 +584,17 @@ this." You fix the cited gap.
 
 ---
 
-## 6. Subagent reference (all 10)
+## 6. Subagent reference (all 11)
 
 Subagents are dispatched via `Task` with their `subagent_type`. Each runs in
 an isolated context with restricted tools.
 
 | Subagent | Role | Tools |
 |---|---|---|
-| `planner` | Build the executable plan with MSCs | Read, Grep, Glob, Bash, Write, Edit, Task |
+| `planner` | Build the executable plan with MSCs + Required Skills section (v0.4+) | Read, Grep, Glob, Bash, Write, Edit, Task |
 | `codebase-analyst` | Build repo-wide context before modification | Read, Grep, Glob, Bash |
 | `documentation-researcher` | Fetch + cite upstream docs | Read, WebFetch, Bash, Write |
+| **`skill-discoverer`** (NEW v0.4) | Phase 2.5: discover + rank relevant skills from user's full ecosystem | Read, Grep, Glob, Bash |
 | `validator` | Exercise real system, capture artifacts | Read, Grep, Glob, Bash |
 | `reviewer-a` | Completeness check | Read, Grep, Glob |
 | `reviewer-b` | Integrity check (content matches claim) | Read, Grep, Glob |
