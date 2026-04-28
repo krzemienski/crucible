@@ -508,9 +508,9 @@ green; pending blue; failed red.
 /crucible:graph --run-id 20260427T145600Z
 ```
 
-### Tier 0 — Activation primitives
+### Tier 0 — Activation primitives (skill-backed)
 
-These are the building blocks Tier-1 conductors compose.
+These are the building blocks Tier-1 conductors compose. Most dispatch to same-named skills under `skills/<name>/` rather than file-backed commands — Claude Code resolves `/crucible:<skill-id>` to the skill when no command file exists. `/crucible:plan-and-execute`, `/crucible:validate`, and `/crucible:audit` are the exceptions: file-backed in `commands/` and counted in this section's "all 19" total. The remaining 10 entries below are pure skill invocations.
 
 | Command | What it does |
 |---|---|
