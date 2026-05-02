@@ -1,5 +1,13 @@
 # Crucible
 
+> What survives the test, ships — evidence-gated execution for Claude Code.
+
+Live site: [crucible.withagents.dev](https://crucible.withagents.dev)
+Field journal entry: _(coming)_
+
+---
+
+
 > **What survives the test, ships.**
 
 A Claude Code plugin that converts task execution into a scientific procedure.
